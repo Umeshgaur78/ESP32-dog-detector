@@ -120,16 +120,19 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
     with open(temp_filename, "wb") as f:
         f.write(image_bytes)
 
-    # 4. Predict using YOLOv8 (conf threshold 0.10 for high sensitivity)
+    # 4. Predict using YOLOv8 (conf threshold 0.05 for ultra sensitivity)
     results = model.predict(
         source=temp_filename,
-        conf=0.10,
+        conf=0.05,
         verbose=False
     )[0]
 
     dog_found = False
     best_score = 0.0
     all_seen = []
+    
+    # Dog & Animal COCO IDs: 16=dog, 15=cat, 17=horse, 18=sheep, 19=cow, 21=bear, 77=teddy bear
+    ANIMAL_IDS = {15, 16, 17, 18, 19, 21, 77}
 
     if results.boxes is not None and len(results.boxes) > 0:
         for box in results.boxes:
@@ -138,7 +141,7 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
             cls_name = model.names.get(cls_id, str(cls_id))
             all_seen.append(f"{cls_name}:{round(score, 2)}")
             
-            if cls_id == DOG_CLASS_ID:
+            if cls_id in ANIMAL_IDS:
                 dog_found = True
                 if score > best_score:
                     best_score = score

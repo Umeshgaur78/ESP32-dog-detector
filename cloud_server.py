@@ -22,7 +22,7 @@ app = FastAPI(title="ESP32 Dog Detector Cloud API")
 
 MODEL_PATH = os.getenv("MODEL_PATH", "yolov8n.pt")
 SECRET_KEY = os.getenv("ALERT_SECRET", "umesh-dog-secret")
-CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.25"))
+CONF_THRESHOLD = float(os.getenv("CONF_THRESHOLD", "0.15"))  # Lower threshold for high sensitivity
 DOG_CLASS_ID = 16  # COCO class 16 = dog
 
 # Notification Settings
@@ -120,23 +120,28 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
     with open(temp_filename, "wb") as f:
         f.write(image_bytes)
 
-    # 4. Predict using YOLOv8
+    # 4. Predict using YOLOv8 (conf threshold 0.10 for high sensitivity)
     results = model.predict(
         source=temp_filename,
-        conf=CONF_THRESHOLD,
-        classes=[DOG_CLASS_ID],
+        conf=0.10,
         verbose=False
     )[0]
 
     dog_found = False
     best_score = 0.0
+    all_seen = []
 
     if results.boxes is not None and len(results.boxes) > 0:
         for box in results.boxes:
             score = float(box.conf[0])
-            dog_found = True
-            if score > best_score:
-                best_score = score
+            cls_id = int(box.cls[0])
+            cls_name = model.names.get(cls_id, str(cls_id))
+            all_seen.append(f"{cls_name}:{round(score, 2)}")
+            
+            if cls_id == DOG_CLASS_ID:
+                dog_found = True
+                if score > best_score:
+                    best_score = score
 
     # 5. Send Notification if dog is detected
     if dog_found:
@@ -146,6 +151,7 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
     return {
         "dog": dog_found,
         "score": round(best_score, 2),
+        "seen": all_seen,
         "message": "Dog detected & Mobile alert sent!" if dog_found else "No dog detected"
     }
 

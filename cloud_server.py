@@ -43,23 +43,26 @@ model = YOLO(MODEL_PATH)
 
 
 def send_alerts(accuracy_percent: int, image_path: str):
-    alert_msg = f"⚠️ DOG DETECTED ON CAR/PREMISES! Confidence: {accuracy_percent}%"
+    alert_msg = f"DOG DETECTED ON CAR/PREMISES! Confidence: {accuracy_percent}%"
+    alert_status = []
 
     # 1. Ntfy Push Notification (Free, High Priority sound alert)
     if NTFY_TOPIC:
         try:
-            requests.post(
+            r = requests.post(
                 f"https://ntfy.sh/{NTFY_TOPIC}",
                 data=alert_msg,
                 headers={
-                    "Title": "🚨 Dog Alert!",
+                    "Title": "Dog Alert!",
                     "Priority": "high",
                     "Tags": "dog,warning,alert"
                 },
-                timeout=5
+                timeout=10
             )
-            print(f"[ALERT] Ntfy push sent to topic: {NTFY_TOPIC}")
+            alert_status.append(f"ntfy:{r.status_code}")
+            print(f"[ALERT] Ntfy HTTP {r.status_code}")
         except Exception as e:
+            alert_status.append(f"ntfy:FAIL:{e}")
             print(f"[ERROR] Ntfy Push Failed: {e}")
 
     # 2. Telegram Bot Alert (Free msg + photo to Telegram chat)
@@ -67,21 +70,21 @@ def send_alerts(accuracy_percent: int, image_path: str):
         try:
             url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto"
             with open(image_path, "rb") as photo:
-                requests.post(
+                r = requests.post(
                     url,
                     data={"chat_id": TELEGRAM_CHAT_ID, "caption": alert_msg},
                     files={"photo": photo},
                     timeout=5
                 )
-            print("[ALERT] Telegram notification sent!")
+            alert_status.append(f"telegram:{r.status_code}")
         except Exception as e:
-            print(f"[ERROR] Telegram Alert Failed: {e}")
+            alert_status.append(f"telegram:FAIL:{e}")
 
     # 3. Twilio SMS / WhatsApp Alert
     if TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN and TWILIO_FROM and TWILIO_TO:
         try:
             twilio_url = f"https://api.twilio.com/2010-04-01/Accounts/{TWILIO_ACCOUNT_SID}/Messages.json"
-            requests.post(
+            r = requests.post(
                 twilio_url,
                 data={
                     "From": TWILIO_FROM,
@@ -91,17 +94,27 @@ def send_alerts(accuracy_percent: int, image_path: str):
                 auth=(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN),
                 timeout=5
             )
-            print(f"[ALERT] Twilio SMS/WhatsApp sent to {TWILIO_TO}")
+            alert_status.append(f"twilio:{r.status_code}")
         except Exception as e:
-            print(f"[ERROR] Twilio SMS Failed: {e}")
+            alert_status.append(f"twilio:FAIL:{e}")
+
+    return alert_status
 
 
 @app.get("/")
 def home():
     return {
         "status": "online",
-        "message": "ESP32 Standalone Cloud Dog Detection Server Running"
+        "message": "ESP32 Standalone Cloud Dog Detection Server Running",
+        "version": "2.0"
     }
+
+
+@app.get("/test-alert")
+def test_alert():
+    """Browser se kholke test karo: https://your-url.railway.app/test-alert"""
+    status = send_alerts(99, "")
+    return {"alert_sent": True, "status": status}
 
 
 @app.post("/detect")
@@ -147,14 +160,16 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
                     best_score = score
 
     # 5. Send Notification if dog is detected
+    alert_status = []
     if dog_found:
         accuracy_percent = int(best_score * 100)
-        send_alerts(accuracy_percent, temp_filename)
+        alert_status = send_alerts(accuracy_percent, temp_filename)
 
     return {
         "dog": dog_found,
         "score": round(best_score, 2),
         "seen": all_seen,
+        "alerts": alert_status,
         "message": "Dog detected & Mobile alert sent!" if dog_found else "No dog detected"
     }
 

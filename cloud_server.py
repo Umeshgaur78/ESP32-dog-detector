@@ -152,7 +152,7 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "2.3",
+        "version": "2.4",
         "app": "/app"
     }
 
@@ -164,8 +164,8 @@ def manifest():
         "short_name": "Dog Watch",
         "start_url": "/app",
         "display": "standalone",
-        "background_color": "#0c0f14",
-        "theme_color": "#0c0f14",
+        "background_color": "#090b10",
+        "theme_color": "#090b10",
     })
 
 
@@ -293,68 +293,108 @@ APP_HTML = """<!DOCTYPE html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0c0f14">
+<meta name="theme-color" content="#090b10">
 <link rel="manifest" href="/manifest.webmanifest">
 <title>Dog Watch</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
+  html, body { margin: 0; min-height: 100%; }
   body {
-    margin: 0; min-height: 100vh; background: #0c0f14; color: #f4f1ea;
+    color: #f6f3ee;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(900px 420px at 50% -10%, rgba(232, 196, 140, 0.16), transparent 55%),
+      radial-gradient(700px 380px at 100% 100%, rgba(72, 98, 140, 0.18), transparent 50%),
+      #090b10;
   }
-  .wrap { max-width: 480px; margin: 0 auto; padding: 18px 16px 28px; }
-  h1 { font-size: 22px; margin: 8px 0 4px; letter-spacing: -0.03em; }
-  p { color: #b7b1a6; line-height: 1.45; }
-  .card {
-    background: #171b22; border: 1px solid #2a3140; border-radius: 18px;
-    overflow: hidden; margin-top: 14px;
+  .wrap { max-width: 460px; margin: 0 auto; padding: 28px 18px 36px; }
+  .brand { display: flex; align-items: center; gap: 12px; }
+  .mark {
+    width: 42px; height: 42px; border-radius: 14px;
+    display: grid; place-items: center;
+    background: linear-gradient(160deg, #f3e2c4, #c9a36a);
+    color: #1b140c; font-weight: 750; letter-spacing: -0.04em;
+    box-shadow: 0 10px 30px rgba(201, 163, 106, 0.25);
   }
-  img.live { width: 100%; min-height: 220px; background: #0a0c10; display: block; object-fit: cover; }
+  h1 { font-size: 28px; margin: 0; letter-spacing: -0.045em; font-weight: 700; }
+  .eyebrow { margin: 2px 0 0; color: #a39b90; font-size: 14px; }
+  .panel {
+    margin-top: 22px; padding: 18px;
+    background: rgba(20, 24, 32, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 28px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+    backdrop-filter: blur(16px);
+  }
+  label { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #b7ad9f; margin-bottom: 8px; }
+  input {
+    width: 100%; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
+    background: rgba(8, 10, 14, 0.7); color: white; font-size: 16px; padding: 15px 16px;
+  }
+  input:focus { outline: 2px solid rgba(232, 196, 140, 0.45); border-color: transparent; }
+  button, a.livebtn {
+    width: 100%; border: 0; border-radius: 16px; font-size: 16px; padding: 15px 16px;
+    text-align: center; text-decoration: none; display: block;
+  }
+  button { margin-top: 12px; background: linear-gradient(180deg, #f6e7cc, #e2c48a); color: #1b140c; font-weight: 700; }
+  button.ghost { margin-top: 8px; background: transparent; color: #c9beb0; font-weight: 600; }
+  a.livebtn { margin-top: 14px; background: linear-gradient(180deg, #f6e7cc, #e2c48a); color: #1b140c; font-weight: 700; }
+  .help { font-size: 13px; line-height: 1.5; color: #8f877c; margin: 14px 2px 0; }
+  .stage {
+    position: relative; margin-top: 18px; border-radius: 28px; overflow: hidden;
+    min-height: 280px; background: #07080c;
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  }
+  img.live { width: 100%; min-height: 320px; height: 58vh; object-fit: cover; display: block; background: #07080c; }
   .empty {
-    min-height: 220px; display: flex; align-items: center; justify-content: center;
-    color: #8d877c; padding: 24px; text-align: center;
+    min-height: 320px; height: 58vh; display: flex; align-items: center; justify-content: center;
+    padding: 28px; text-align: center; color: #b7ad9f;
   }
-  .bar { display: flex; justify-content: space-between; gap: 8px; padding: 12px 14px; font-size: 14px; }
-  .pill { border-radius: 999px; padding: 4px 10px; background: #243041; }
-  .pill.bad { background: #6d2430; }
-  .pill.ok { background: #1d4a34; }
-  button, input {
-    width: 100%; border: 0; border-radius: 14px; font-size: 16px; padding: 14px 16px;
+  .overlay {
+    position: absolute; left: 12px; right: 12px; top: 12px;
+    display: flex; justify-content: space-between; gap: 8px; align-items: center;
   }
-  input { background: #10141b; color: white; border: 1px solid #334055; margin: 8px 0 12px; }
-  button { background: #e8d7b0; color: #1a140c; font-weight: 700; }
-  button.ghost { background: transparent; color: #e8d7b0; border: 1px solid #4a4336; margin-top: 10px; }
-  a.livebtn {
-    display: block; text-align: center; text-decoration: none; margin-top: 10px;
-    background: #e8d7b0; color: #1a140c; font-weight: 700; border-radius: 14px; padding: 14px 16px;
+  .pill, .agechip {
+    border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 650;
+    background: rgba(10, 12, 16, 0.62); color: #f6f3ee;
+    border: 1px solid rgba(255,255,255,0.12);
+    backdrop-filter: blur(10px);
   }
-  .help { font-size: 13px; color: #8d877c; }
+  .pill.ok { background: rgba(22, 92, 62, 0.82); }
+  .pill.bad { background: rgba(140, 36, 48, 0.88); }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Dog Watch</h1>
-  <p id="lead">Your camera app, with alerts and a live view.</p>
+  <div class="brand">
+    <div class="mark">DW</div>
+    <div>
+      <h1>Dog Watch</h1>
+      <p class="eyebrow" id="lead">Live camera and alerts</p>
+    </div>
+  </div>
 
-  <section id="login">
-    <input id="secret" type="password" placeholder="Alert secret" autocomplete="current-password">
+  <section id="login" class="panel">
+    <label for="secret">Alert secret</label>
+    <input id="secret" type="password" placeholder="Enter your secret" autocomplete="current-password">
     <button id="save" type="button">Open app</button>
-    <p class="help">Use the same alert secret from the ESP32 camera code. This phone will remember it.</p>
+    <p class="help">Use the same secret from the ESP32 camera code. This phone will remember it.</p>
   </section>
 
   <section id="watch" hidden>
-    <div class="card">
+    <div class="stage">
       <img id="shot" class="live" alt="Camera" hidden>
       <div id="waiting" class="empty">Waiting for the first picture from the camera...</div>
-      <div class="bar">
+      <div class="overlay">
         <span id="state" class="pill">Connecting</span>
-        <span id="age">—</span>
+        <span id="age" class="agechip">—</span>
       </div>
     </div>
     <a id="cam" class="livebtn" hidden>Open the camera live video</a>
     <button id="out" class="ghost" type="button">Remove secret</button>
-    <p class="help">To keep this on your home screen, tap Share in Safari, then Add to Home Screen. On an alert, tap Live stream to open this app.</p>
+    <p class="help">Add this to your home screen from Safari: Share, then Add to Home Screen. On an alert, tap Live stream.</p>
   </section>
 </div>
 <script>

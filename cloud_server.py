@@ -152,7 +152,7 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "2.7",
+        "version": "2.8",
         "app": "/app"
     }
 
@@ -355,8 +355,8 @@ APP_HTML = """<!DOCTYPE html>
   }
   .empty[hidden] { display: none; }
   .overlay {
-    position: absolute; left: 18px; right: 18px; top: 18px;
-    display: flex; justify-content: space-between; gap: 8px; align-items: center;
+    position: absolute; left: 16px; top: 16px;
+    display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
   }
   .pill, .agechip {
     border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 650;

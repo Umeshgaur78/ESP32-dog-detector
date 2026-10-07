@@ -14,8 +14,10 @@ Features:
 """
 
 import os
+import time
 import requests
 from fastapi import FastAPI, Header, HTTPException, Request
+from fastapi.responses import HTMLResponse, JSONResponse, Response
 from ultralytics import YOLO
 
 app = FastAPI(title="ESP32 Dog Detector Cloud API")
@@ -41,6 +43,35 @@ TWILIO_TO = os.getenv("TWILIO_TO", "")      # e.g., '+919876543210' or 'whatsapp
 # Load YOLO model on startup
 model = YOLO(MODEL_PATH)
 
+LATEST_JPEG = b""
+LATEST_AT = 0.0
+LAST_DOG = False
+LAST_SCORE = 0.0
+LAST_SEEN = []
+LAST_ALERT_AT = 0.0
+CAM_IP = ""
+
+
+def app_public_url() -> str:
+    domain = os.getenv(
+        "RAILWAY_PUBLIC_DOMAIN",
+        "esp32-dog-detector-production.up.railway.app",
+    )
+    return f"https://{domain}/app"
+
+
+def secret_ok(value: str) -> bool:
+    return bool(value) and value == SECRET_KEY
+
+
+def remember_frame(image_bytes: bytes, cam_ip: str = ""):
+    global LATEST_JPEG, LATEST_AT, CAM_IP
+    if image_bytes:
+        LATEST_JPEG = image_bytes
+        LATEST_AT = time.time()
+    if cam_ip:
+        CAM_IP = cam_ip.strip()
+
 
 def send_alerts(accuracy_percent: int, image_path: str):
     alert_msg = f"DOG DETECTED ON CAR/PREMISES! Confidence: {accuracy_percent}%"
@@ -49,14 +80,26 @@ def send_alerts(accuracy_percent: int, image_path: str):
     # 1. Ntfy Push Notification (Free, High Priority sound alert)
     if NTFY_TOPIC:
         try:
+            image_bytes = b""
+            if image_path and os.path.exists(image_path):
+                with open(image_path, "rb") as photo_file:
+                    image_bytes = photo_file.read()
+            headers = {
+                "Title": "Dog Alert!",
+                "Priority": "high",
+                "Tags": "dog,warning,alert",
+                "Click": app_public_url(),
+            }
+            body = alert_msg
+            if image_bytes:
+                headers["Filename"] = "dog.jpg"
+                headers["Message"] = alert_msg
+                headers["Content-Type"] = "image/jpeg"
+                body = image_bytes
             r = requests.post(
                 f"https://ntfy.sh/{NTFY_TOPIC}",
-                data=alert_msg,
-                headers={
-                    "Title": "Dog Alert!",
-                    "Priority": "high",
-                    "Tags": "dog,warning,alert"
-                },
+                data=body,
+                headers=headers,
                 timeout=10
             )
             alert_status.append(f"ntfy:{r.status_code}")
@@ -106,8 +149,67 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "2.0"
+        "version": "2.1",
+        "app": "/app"
     }
+
+
+@app.get("/manifest.webmanifest")
+def manifest():
+    return JSONResponse({
+        "name": "Dog Watch",
+        "short_name": "Dog Watch",
+        "start_url": "/app",
+        "display": "standalone",
+        "background_color": "#0c0f14",
+        "theme_color": "#0c0f14",
+    })
+
+
+@app.get("/app", response_class=HTMLResponse)
+def phone_app():
+    return HTMLResponse(APP_HTML)
+
+
+@app.get("/live.jpg")
+def live_jpg(x_alert_secret: str = Header(None)):
+    if not secret_ok(x_alert_secret):
+        raise HTTPException(status_code=401, detail="Invalid Secret Key")
+    if not LATEST_JPEG:
+        raise HTTPException(status_code=404, detail="No frame yet")
+    return Response(
+        content=LATEST_JPEG,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@app.get("/api/status")
+def live_status(x_alert_secret: str = Header(None)):
+    if not secret_ok(x_alert_secret):
+        raise HTTPException(status_code=401, detail="Invalid Secret Key")
+    age = None if not LATEST_AT else round(time.time() - LATEST_AT, 1)
+    cam_url = f"http://{CAM_IP}/" if CAM_IP else ""
+    return {
+        "has_frame": bool(LATEST_JPEG),
+        "age_sec": age,
+        "dog": LAST_DOG,
+        "score": LAST_SCORE,
+        "seen": LAST_SEEN,
+        "last_alert_age_sec": None if not LAST_ALERT_AT else round(time.time() - LAST_ALERT_AT, 1),
+        "cam_url": cam_url,
+    }
+
+
+@app.post("/frame")
+async def frame(request: Request, x_alert_secret: str = Header(None)):
+    if not secret_ok(x_alert_secret):
+        raise HTTPException(status_code=401, detail="Invalid Secret Key")
+    image_bytes = await request.body()
+    if not image_bytes:
+        raise HTTPException(status_code=400, detail="Empty frame received")
+    remember_frame(image_bytes, request.headers.get("x-cam-ip", ""))
+    return {"ok": True, "bytes": len(image_bytes)}
 
 
 @app.get("/test-alert")
@@ -127,6 +229,7 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
     image_bytes = await request.body()
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Empty frame received")
+    remember_frame(image_bytes, request.headers.get("x-cam-ip", ""))
 
     # 3. Save temporary frame
     temp_filename = "temp_frame.jpg"
@@ -160,9 +263,14 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
                     best_score = score
 
     # 5. Send Notification if dog is detected
+    global LAST_DOG, LAST_SCORE, LAST_SEEN, LAST_ALERT_AT
     alert_status = []
+    LAST_DOG = dog_found
+    LAST_SCORE = round(best_score, 2)
+    LAST_SEEN = all_seen
     if dog_found:
         accuracy_percent = int(best_score * 100)
+        LAST_ALERT_AT = time.time()
         alert_status = send_alerts(accuracy_percent, temp_filename)
 
     return {
@@ -172,4 +280,152 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
         "alerts": alert_status,
         "message": "Dog detected & Mobile alert sent!" if dog_found else "No dog detected"
     }
+
+
+APP_HTML = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0c0f14">
+<link rel="manifest" href="/manifest.webmanifest">
+<title>Dog Watch</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; background: #0c0f14; color: #f4f1ea;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 18px 16px 28px; }
+  h1 { font-size: 22px; margin: 8px 0 4px; letter-spacing: -0.03em; }
+  p { color: #b7b1a6; line-height: 1.45; }
+  .card {
+    background: #171b22; border: 1px solid #2a3140; border-radius: 18px;
+    overflow: hidden; margin-top: 14px;
+  }
+  img.live { width: 100%; min-height: 220px; background: #0a0c10; display: block; object-fit: cover; }
+  .empty {
+    min-height: 220px; display: flex; align-items: center; justify-content: center;
+    color: #8d877c; padding: 24px; text-align: center;
+  }
+  .bar { display: flex; justify-content: space-between; gap: 8px; padding: 12px 14px; font-size: 14px; }
+  .pill { border-radius: 999px; padding: 4px 10px; background: #243041; }
+  .pill.bad { background: #6d2430; }
+  .pill.ok { background: #1d4a34; }
+  button, input {
+    width: 100%; border: 0; border-radius: 14px; font-size: 16px; padding: 14px 16px;
+  }
+  input { background: #10141b; color: white; border: 1px solid #334055; margin: 8px 0 12px; }
+  button { background: #e8d7b0; color: #1a140c; font-weight: 700; }
+  button.ghost { background: transparent; color: #e8d7b0; border: 1px solid #4a4336; margin-top: 10px; }
+  a.livebtn {
+    display: block; text-align: center; text-decoration: none; margin-top: 10px;
+    background: #e8d7b0; color: #1a140c; font-weight: 700; border-radius: 14px; padding: 14px 16px;
+  }
+  .help { font-size: 13px; color: #8d877c; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Dog Watch</h1>
+  <p id="lead">iPhone par apna camera app. Alert ke saath live tasveer.</p>
+
+  <section id="login">
+    <input id="secret" type="password" placeholder="Alert secret" autocomplete="current-password">
+    <button id="save" type="button">App kholo</button>
+    <p class="help">Wahi secret jo ESP32 camera code mein ALERT_SECRET hai. Ek baar daaloge, phone yaad rakhega.</p>
+  </section>
+
+  <section id="watch" hidden>
+    <div class="card">
+      <img id="shot" class="live" alt="Camera" hidden>
+      <div id="waiting" class="empty">Camera se pehli tasveer ka wait...</div>
+      <div class="bar">
+        <span id="state" class="pill">Connecting</span>
+        <span id="age">—</span>
+      </div>
+    </div>
+    <a id="cam" class="livebtn" hidden>Board ka live video kholo</a>
+    <button id="out" class="ghost" type="button">Secret hatao</button>
+    <p class="help">Home screen app: Safari mein Share dabao, phir Add to Home Screen. ntfy alert par tap karoge to yahi app khulega, photo ke saath.</p>
+  </section>
+</div>
+<script>
+const secretEl = document.getElementById('secret');
+const loginEl = document.getElementById('login');
+const watchEl = document.getElementById('watch');
+const shot = document.getElementById('shot');
+const waiting = document.getElementById('waiting');
+const stateEl = document.getElementById('state');
+const ageEl = document.getElementById('age');
+const camEl = document.getElementById('cam');
+let key = localStorage.getItem('dogwatch_secret') || '';
+let blobUrl = '';
+
+function showWatch() {
+  loginEl.hidden = true;
+  watchEl.hidden = false;
+  tick();
+  setInterval(tick, 1000);
+}
+function logout() {
+  localStorage.removeItem('dogwatch_secret');
+  key = '';
+  watchEl.hidden = true;
+  loginEl.hidden = false;
+}
+document.getElementById('save').onclick = function () {
+  key = secretEl.value.trim();
+  if (!key) return;
+  localStorage.setItem('dogwatch_secret', key);
+  showWatch();
+};
+document.getElementById('out').onclick = logout;
+
+async function tick() {
+  if (!key) return;
+  try {
+    const status = await fetch('/api/status', { headers: { 'x-alert-secret': key }, cache: 'no-store' });
+    if (status.status === 401) return logout();
+    if (status.ok) {
+      const data = await status.json();
+      if (data.dog) {
+        stateEl.textContent = 'Dog detected ' + Math.round((data.score || 0) * 100) + '%';
+        stateEl.className = 'pill bad';
+      } else if (data.has_frame) {
+        stateEl.textContent = 'Live';
+        stateEl.className = 'pill ok';
+      } else {
+        stateEl.textContent = 'Waiting';
+        stateEl.className = 'pill';
+      }
+      ageEl.textContent = data.age_sec == null ? 'no frame' : data.age_sec + 's ago';
+      if (data.cam_url) {
+        camEl.href = data.cam_url;
+        camEl.hidden = false;
+      }
+    }
+    const pic = await fetch('/live.jpg', { headers: { 'x-alert-secret': key }, cache: 'no-store' });
+    if (pic.status === 404) return;
+    if (!pic.ok) return;
+    const blob = await pic.blob();
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    blobUrl = URL.createObjectURL(blob);
+    shot.src = blobUrl;
+    shot.hidden = false;
+    waiting.hidden = true;
+  } catch (e) {
+    stateEl.textContent = 'Offline';
+    stateEl.className = 'pill';
+  }
+}
+if (key) showWatch();
+</script>
+</body>
+</html>
+"""
 

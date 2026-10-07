@@ -152,7 +152,7 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "2.9",
+        "version": "3.0",
         "app": "/app"
     }
 
@@ -423,10 +423,10 @@ APP_HTML = """<!DOCTYPE html>
     <div class="notes">
       <h2>Instructions</h2>
       <ol>
-        <li>Keep the camera powered on and connected to the phone hotspot.</li>
+        <li>Keep the camera powered on and connected to Wi-Fi.</li>
         <li>The picture in the middle is the live view. It refreshes every few seconds.</li>
         <li>When a dog is detected, the ntfy alert arrives. Tap Live stream, not the photo.</li>
-        <li>To keep this on your home screen, tap Share in Safari, then Add to Home Screen.</li>
+        <li>To keep this on your home screen, open the browser menu and tap Add to Home Screen.</li>
       </ol>
     </div>
     <button id="out" class="ghost" type="button">Remove secret</button>

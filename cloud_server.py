@@ -75,7 +75,7 @@ def remember_frame(image_bytes: bytes, cam_ip: str = ""):
 
 
 def send_alerts(accuracy_percent: int, image_path: str):
-    alert_msg = f"DOG DETECTED! Confidence: {accuracy_percent}%. Photo par nahi, Live stream button dabao."
+    alert_msg = f"Dog detected. Confidence: {accuracy_percent}%. Tap Live stream to open the camera."
     alert_status = []
 
     # 1. Ntfy Push Notification (Free, High Priority sound alert)
@@ -152,7 +152,7 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "2.2",
+        "version": "2.3",
         "app": "/app"
     }
 
@@ -335,26 +335,26 @@ APP_HTML = """<!DOCTYPE html>
 <body>
 <div class="wrap">
   <h1>Dog Watch</h1>
-  <p id="lead">iPhone par apna camera app. Alert ke saath live tasveer.</p>
+  <p id="lead">Your camera app, with alerts and a live view.</p>
 
   <section id="login">
     <input id="secret" type="password" placeholder="Alert secret" autocomplete="current-password">
-    <button id="save" type="button">App kholo</button>
-    <p class="help">Wahi secret jo ESP32 camera code mein ALERT_SECRET hai. Ek baar daaloge, phone yaad rakhega.</p>
+    <button id="save" type="button">Open app</button>
+    <p class="help">Use the same alert secret from the ESP32 camera code. This phone will remember it.</p>
   </section>
 
   <section id="watch" hidden>
     <div class="card">
       <img id="shot" class="live" alt="Camera" hidden>
-      <div id="waiting" class="empty">Camera se pehli tasveer ka wait...</div>
+      <div id="waiting" class="empty">Waiting for the first picture from the camera...</div>
       <div class="bar">
         <span id="state" class="pill">Connecting</span>
         <span id="age">—</span>
       </div>
     </div>
-    <a id="cam" class="livebtn" hidden>Board ka live video kholo</a>
-    <button id="out" class="ghost" type="button">Secret hatao</button>
-    <p class="help">Home screen app: Safari mein Share dabao, phir Add to Home Screen. ntfy alert par tap karoge to yahi app khulega, photo ke saath.</p>
+    <a id="cam" class="livebtn" hidden>Open the camera live video</a>
+    <button id="out" class="ghost" type="button">Remove secret</button>
+    <p class="help">To keep this on your home screen, tap Share in Safari, then Add to Home Screen. On an alert, tap Live stream to open this app.</p>
   </section>
 </div>
 <script>

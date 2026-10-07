@@ -152,7 +152,7 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "3.1",
+        "version": "3.2",
         "app": "/app"
     }
 
@@ -248,10 +248,8 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
 
     dog_found = False
     best_score = 0.0
+    person_score = 0.0
     all_seen = []
-    
-    # Dog & Animal COCO IDs: 16=dog, 15=cat, 17=horse, 18=sheep, 19=cow, 21=bear, 77=teddy bear
-    ANIMAL_IDS = {15, 16, 17, 18, 19, 21, 77}
 
     if results.boxes is not None and len(results.boxes) > 0:
         for box in results.boxes:
@@ -259,11 +257,16 @@ async def detect(request: Request, x_alert_secret: str = Header(None)):
             cls_id = int(box.cls[0])
             cls_name = model.names.get(cls_id, str(cls_id))
             all_seen.append(f"{cls_name}:{round(score, 2)}")
-            
-            if cls_id in ANIMAL_IDS:
-                dog_found = True
-                if score > best_score:
-                    best_score = score
+            if cls_id == 0 and score > person_score:
+                person_score = score
+            if cls_id == DOG_CLASS_ID and score > best_score:
+                best_score = score
+
+    # Weak dog scores were alerts for people. Require a clear dog, stronger than any person.
+    if best_score >= 0.40 and best_score > person_score:
+        dog_found = True
+    else:
+        best_score = 0.0
 
     # 5. Send Notification if dog is detected
     global LAST_DOG, LAST_SCORE, LAST_SEEN, LAST_ALERT_AT

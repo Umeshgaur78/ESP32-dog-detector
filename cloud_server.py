@@ -15,6 +15,7 @@ Features:
 
 import os
 import time
+from urllib.parse import quote
 import requests
 from fastapi import FastAPI, Header, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse, Response
@@ -57,7 +58,7 @@ def app_public_url() -> str:
         "RAILWAY_PUBLIC_DOMAIN",
         "esp32-dog-detector-production.up.railway.app",
     )
-    return f"https://{domain}/app"
+    return f"https://{domain}/app?k={quote(SECRET_KEY, safe='')}"
 
 
 def secret_ok(value: str) -> bool:
@@ -74,7 +75,7 @@ def remember_frame(image_bytes: bytes, cam_ip: str = ""):
 
 
 def send_alerts(accuracy_percent: int, image_path: str):
-    alert_msg = f"DOG DETECTED ON CAR/PREMISES! Confidence: {accuracy_percent}%"
+    alert_msg = f"DOG DETECTED! Confidence: {accuracy_percent}%. Photo par nahi, Live stream button dabao."
     alert_status = []
 
     # 1. Ntfy Push Notification (Free, High Priority sound alert)
@@ -84,11 +85,13 @@ def send_alerts(accuracy_percent: int, image_path: str):
             if image_path and os.path.exists(image_path):
                 with open(image_path, "rb") as photo_file:
                     image_bytes = photo_file.read()
+            live_link = app_public_url()
             headers = {
                 "Title": "Dog Alert!",
                 "Priority": "high",
                 "Tags": "dog,warning,alert",
-                "Click": app_public_url(),
+                "Click": live_link,
+                "Actions": f"view, Live stream, {live_link}",
             }
             body = alert_msg
             if image_bytes:
@@ -149,7 +152,7 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "2.1",
+        "version": "2.2",
         "app": "/app"
     }
 
@@ -363,7 +366,12 @@ const waiting = document.getElementById('waiting');
 const stateEl = document.getElementById('state');
 const ageEl = document.getElementById('age');
 const camEl = document.getElementById('cam');
-let key = localStorage.getItem('dogwatch_secret') || '';
+const fromLink = (new URLSearchParams(location.search).get('k') || '').trim();
+let key = fromLink || localStorage.getItem('dogwatch_secret') || '';
+if (fromLink) {
+  localStorage.setItem('dogwatch_secret', fromLink);
+  history.replaceState({}, '', '/app');
+}
 let blobUrl = '';
 
 function showWatch() {

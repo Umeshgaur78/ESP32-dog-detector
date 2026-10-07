@@ -152,7 +152,7 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "3.0",
+        "version": "3.1",
         "app": "/app"
     }
 
@@ -419,7 +419,7 @@ APP_HTML = """<!DOCTYPE html>
         <span id="age" class="agechip">—</span>
       </div>
     </div>
-    <a id="cam" class="livebtn" hidden>Open the camera live video</a>
+    <button id="cam" class="livebtn" type="button">Refresh camera</button>
     <div class="notes">
       <h2>Instructions</h2>
       <ol>
@@ -440,7 +440,6 @@ const shot = document.getElementById('shot');
 const waiting = document.getElementById('waiting');
 const stateEl = document.getElementById('state');
 const ageEl = document.getElementById('age');
-const camEl = document.getElementById('cam');
 const fromLink = (new URLSearchParams(location.search).get('k') || '').trim();
 let key = fromLink || localStorage.getItem('dogwatch_secret') || '';
 if (fromLink) {
@@ -468,6 +467,11 @@ document.getElementById('save').onclick = function () {
   showWatch();
 };
 document.getElementById('out').onclick = logout;
+document.getElementById('cam').onclick = async function () {
+  const btn = document.getElementById('cam');
+  btn.textContent = 'Refreshing...';
+  try { await tick(); } finally { btn.textContent = 'Refresh camera'; }
+};
 
 async function tick() {
   if (!key) return;
@@ -487,10 +491,6 @@ async function tick() {
         stateEl.className = 'pill';
       }
       ageEl.textContent = data.age_sec == null ? 'no frame' : data.age_sec + 's ago';
-      if (data.cam_url) {
-        camEl.href = data.cam_url;
-        camEl.hidden = false;
-      }
     }
     const pic = await fetch('/live.jpg', { headers: { 'x-alert-secret': key }, cache: 'no-store' });
     if (pic.status === 404) return;

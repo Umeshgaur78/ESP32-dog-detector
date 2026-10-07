@@ -14,6 +14,8 @@ Features:
 """
 
 import os
+import re
+import secrets
 import time
 from urllib.parse import quote
 import requests
@@ -86,12 +88,16 @@ def send_alerts(accuracy_percent: int, image_path: str):
                 with open(image_path, "rb") as photo_file:
                     image_bytes = photo_file.read()
             live_link = app_public_url()
+            alert_id = "dog-" + secrets.token_hex(8)
+            delete_link = live_link.split("?")[0].replace("/app", "/delete-alert")
+            delete_link = f"{delete_link}?id={alert_id}&k={quote(SECRET_KEY, safe='')}"
             headers = {
                 "Title": "Dog Alert!",
                 "Priority": "high",
                 "Tags": "dog,warning,alert",
                 "Click": live_link,
-                "Actions": f"view, Live stream, {live_link}",
+                "Sequence-ID": alert_id,
+                "Actions": f"view, Live stream, {live_link}; view, Delete alert, {delete_link}",
             }
             body = alert_msg
             if image_bytes:
@@ -152,7 +158,7 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "3.2",
+        "version": "3.3",
         "app": "/app"
     }
 
@@ -172,6 +178,30 @@ def manifest():
 @app.get("/app", response_class=HTMLResponse)
 def phone_app():
     return HTMLResponse(APP_HTML)
+
+
+@app.get("/delete-alert", response_class=HTMLResponse)
+def delete_alert(id: str = "", k: str = ""):
+    if not secret_ok(k) or not re.fullmatch(r"dog-[0-9a-f]{16}", id or ""):
+        raise HTTPException(status_code=403, detail="Cannot delete this alert")
+    deleted = False
+    if NTFY_TOPIC:
+        try:
+            response = requests.delete(
+                f"https://ntfy.sh/{NTFY_TOPIC}/{id}",
+                timeout=10,
+            )
+            deleted = response.status_code == 200
+        except Exception:
+            deleted = False
+    title = "Alert deleted" if deleted else "Could not delete alert"
+    detail = "You can close this page. The notification is removed from ntfy." if deleted else "Open ntfy and swipe the alert away."
+    return HTMLResponse(
+        f"""<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>{title}</title></head>
+        <body style="margin:0;min-height:100vh;display:grid;place-items:center;background:#07010f;color:#f7f2ff;font-family:-apple-system,sans-serif">
+        <main style="text-align:center;padding:24px"><h1>{title}</h1><p>{detail}</p></main></body></html>"""
+    )
 
 
 @app.get("/live.jpg")

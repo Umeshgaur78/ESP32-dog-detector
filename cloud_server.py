@@ -152,7 +152,7 @@ def home():
     return {
         "status": "online",
         "message": "ESP32 Standalone Cloud Dog Detection Server Running",
-        "version": "2.8",
+        "version": "2.9",
         "app": "/app"
     }
 
@@ -164,8 +164,8 @@ def manifest():
         "short_name": "Dog Watch",
         "start_url": "/app",
         "display": "standalone",
-        "background_color": "#090b10",
-        "theme_color": "#090b10",
+        "background_color": "#07010f",
+        "theme_color": "#07010f",
     })
 
 
@@ -293,7 +293,7 @@ APP_HTML = """<!DOCTYPE html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#090b10">
+<meta name="theme-color" content="#07010f">
 <link rel="manifest" href="/manifest.webmanifest">
 <title>Dog Watch</title>
 <style>
@@ -301,94 +301,118 @@ APP_HTML = """<!DOCTYPE html>
   * { box-sizing: border-box; }
   html, body { margin: 0; min-height: 100%; }
   body {
-    color: #f6f3ee;
+    color: #f7f2ff;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     background:
-      radial-gradient(900px 420px at 50% -10%, rgba(232, 196, 140, 0.16), transparent 55%),
-      radial-gradient(700px 380px at 100% 100%, rgba(72, 98, 140, 0.18), transparent 50%),
-      #090b10;
+      radial-gradient(520px 180px at 15% 0%, rgba(196, 90, 255, 0.55), transparent 70%),
+      radial-gradient(420px 160px at 88% 0%, rgba(120, 70, 255, 0.45), transparent 68%),
+      linear-gradient(180deg, #14001f 0%, #07010f 34%, #07010f 68%, #120018 100%);
   }
-  .wrap { max-width: 460px; margin: 0 auto; padding: 28px 18px 36px; }
-  .brand { display: flex; align-items: center; gap: 12px; }
-  .mark {
-    width: 42px; height: 42px; border-radius: 14px;
-    display: grid; place-items: center;
-    background: linear-gradient(160deg, #f3e2c4, #c9a36a);
-    color: #1b140c; font-weight: 750; letter-spacing: -0.04em;
-    box-shadow: 0 10px 30px rgba(201, 163, 106, 0.25);
+  body:before {
+    content: "";
+    position: fixed; left: 0; right: 0; top: 0; height: 3px;
+    background: linear-gradient(90deg, transparent, #e879f9, #22d3ee, #e879f9, transparent);
+    box-shadow: 0 0 18px #c026d3;
   }
-  h1 { font-size: 28px; margin: 0; letter-spacing: -0.045em; font-weight: 700; }
-  .eyebrow { margin: 2px 0 0; color: #a39b90; font-size: 14px; }
+  .wrap { max-width: 520px; margin: 0 auto; padding: 22px 14px 32px; }
+  .hero { text-align: center; padding-top: 8px; }
+  .dogs { display: flex; justify-content: center; gap: 10px; }
+  .dogs img, .dogfb {
+    width: 74px; height: 74px; border-radius: 50%; object-fit: cover;
+    border: 2px solid rgba(232, 121, 249, 0.85);
+    box-shadow: 0 0 18px rgba(192, 38, 211, 0.65);
+    background: #1a0528;
+  }
+  .dogfb { display: inline-grid; place-items: center; font-size: 32px; }
+  h1 {
+    margin: 12px 0 0; font-size: 40px; letter-spacing: 0.22em; font-weight: 800;
+    text-shadow: 0 0 18px rgba(217, 70, 239, 0.9);
+  }
+  .eyebrow { margin: 4px 0 0; color: #d8b4fe; letter-spacing: 0.16em; font-size: 12px; text-transform: uppercase; }
   .panel {
-    margin-top: 22px; padding: 18px;
-    background: rgba(20, 24, 32, 0.78);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 28px;
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(16px);
+    margin-top: 18px; padding: 16px;
+    background: rgba(18, 6, 32, 0.72);
+    border: 1px solid rgba(232, 121, 249, 0.35);
+    border-radius: 22px;
+    box-shadow: 0 0 28px rgba(168, 85, 247, 0.18);
   }
-  label { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #b7ad9f; margin-bottom: 8px; }
+  label { display: block; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: #e9d5ff; margin-bottom: 8px; }
   input {
-    width: 100%; border: 1px solid rgba(255,255,255,0.1); border-radius: 16px;
-    background: rgba(8, 10, 14, 0.7); color: white; font-size: 16px; padding: 15px 16px;
+    width: 100%; border: 1px solid rgba(232, 121, 249, 0.35); border-radius: 14px;
+    background: rgba(8, 2, 16, 0.8); color: white; font-size: 16px; padding: 14px 16px;
   }
-  input:focus { outline: 2px solid rgba(232, 196, 140, 0.45); border-color: transparent; }
+  input:focus { outline: 2px solid rgba(232, 121, 249, 0.55); border-color: transparent; }
   button, a.livebtn {
-    width: 100%; border: 0; border-radius: 16px; font-size: 16px; padding: 15px 16px;
+    width: 100%; border: 0; border-radius: 14px; font-size: 16px; padding: 14px 16px;
     text-align: center; text-decoration: none; display: block;
   }
-  button { margin-top: 12px; background: linear-gradient(180deg, #f6e7cc, #e2c48a); color: #1b140c; font-weight: 700; }
-  button.ghost { margin-top: 8px; background: transparent; color: #c9beb0; font-weight: 600; }
-  a.livebtn { margin-top: 14px; background: linear-gradient(180deg, #f6e7cc, #e2c48a); color: #1b140c; font-weight: 700; }
-  .help { font-size: 13px; line-height: 1.5; color: #8f877c; margin: 14px 2px 0; }
-  .stage {
-    position: relative; margin-top: 18px; border-radius: 28px; overflow: hidden;
-    min-height: 280px; background: #07080c;
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  button { margin-top: 12px; background: linear-gradient(90deg, #7c3aed, #d946ef); color: white; font-weight: 700; }
+  button.ghost { margin-top: 8px; background: transparent; color: #e9d5ff; font-weight: 600; }
+  a.livebtn { margin-top: 12px; background: linear-gradient(90deg, #7c3aed, #d946ef); color: white; font-weight: 700; }
+  .live-label {
+    margin: 16px 0 8px; text-align: center; font-size: 13px; letter-spacing: 0.28em;
+    color: #f0abfc; font-weight: 700;
   }
-  img.live { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: block; background: #07080c; }
+  .stage {
+    position: relative; border-radius: 26px; overflow: hidden;
+    background: #05010a;
+    border: 1px solid rgba(232, 121, 249, 0.7);
+    box-shadow: 0 0 28px rgba(192, 38, 211, 0.45), inset 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  img.live { width: 100%; aspect-ratio: 3 / 4; max-height: 68vh; object-fit: cover; display: block; background: #05010a; }
   img.live[hidden] { display: none; }
   .empty {
-    aspect-ratio: 4 / 3; display: flex; align-items: center; justify-content: center;
-    padding: 28px; text-align: center; color: #b7ad9f;
+    aspect-ratio: 3 / 4; max-height: 68vh; display: flex; align-items: center; justify-content: center;
+    padding: 28px; text-align: center; color: #e9d5ff;
   }
   .empty[hidden] { display: none; }
   .overlay {
-    position: absolute; left: 16px; top: 16px;
+    position: absolute; left: 14px; top: 14px;
     display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
   }
   .pill, .agechip {
-    border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 650;
+    border-radius: 999px; padding: 7px 12px; font-size: 13px; font-weight: 700;
     white-space: nowrap;
-    background: rgba(10, 12, 16, 0.62); color: #f6f3ee;
-    border: 1px solid rgba(255,255,255,0.12);
+    background: rgba(12, 2, 22, 0.72); color: #faf5ff;
+    border: 1px solid rgba(232, 121, 249, 0.45);
     backdrop-filter: blur(10px);
   }
-  .pill.ok { background: rgba(22, 92, 62, 0.82); }
-  .pill.bad { background: rgba(140, 36, 48, 0.88); }
+  .pill.ok { background: rgba(88, 28, 135, 0.9); box-shadow: 0 0 12px rgba(217, 70, 239, 0.65); }
+  .pill.bad { background: rgba(157, 23, 77, 0.92); }
+  .notes {
+    margin-top: 16px; padding: 14px 14px 6px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(88, 28, 135, 0.28), rgba(8, 2, 20, 0.2));
+    border: 1px solid rgba(192, 132, 252, 0.28);
+  }
+  .notes h2 { margin: 0 0 8px; font-size: 14px; letter-spacing: 0.14em; text-transform: uppercase; color: #f5d0fe; }
+  .notes ol { margin: 0; padding-left: 18px; color: #ddd6fe; font-size: 14px; line-height: 1.45; }
+  .notes li { margin-bottom: 8px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="brand">
-    <div class="mark">DW</div>
-    <div>
-      <h1>Dog Watch</h1>
-      <p class="eyebrow" id="lead">Live camera and alerts</p>
+  <header class="hero">
+    <div class="dogs">
+      <img alt="Dog" src="https://images.unsplash.com/photo-1587300003388-59208cc962cb?auto=format&fit=crop&w=200&h=200" onerror="this.outerHTML='<span class=dogfb>🐶</span>'">
+      <img alt="Dog" src="https://images.unsplash.com/photo-1552053831-71594a27632d?auto=format&fit=crop&w=200&h=200" onerror="this.outerHTML='<span class=dogfb>🐶</span>'">
+      <img alt="Dog" src="https://cdn.pixabay.com/photo/2016/12/13/05/15/puppy-1903313_640.jpg" onerror="this.outerHTML='<span class=dogfb>🐶</span>'">
     </div>
-  </div>
+    <h1>ALERT</h1>
+    <p class="eyebrow" id="lead">Dog watch</p>
+  </header>
 
   <section id="login" class="panel">
     <label for="secret">Alert secret</label>
     <input id="secret" type="password" placeholder="Enter your secret" autocomplete="current-password">
     <button id="save" type="button">Open app</button>
-    <p class="help">Use the same secret from the ESP32 camera code. This phone will remember it.</p>
+    <p class="help" style="color:#d8b4fe;font-size:13px;line-height:1.45;">Use the same secret from the ESP32 camera code. This phone will remember it.</p>
   </section>
 
   <section id="watch" hidden>
+    <p class="live-label">LIVE</p>
     <div class="stage">
-      <img id="shot" class="live" alt="Camera" hidden>
+      <img id="shot" class="live" alt="Live camera" hidden>
       <div id="waiting" class="empty">Waiting for the first picture from the camera...</div>
       <div class="overlay">
         <span id="state" class="pill">Connecting</span>
@@ -396,8 +420,16 @@ APP_HTML = """<!DOCTYPE html>
       </div>
     </div>
     <a id="cam" class="livebtn" hidden>Open the camera live video</a>
+    <div class="notes">
+      <h2>Instructions</h2>
+      <ol>
+        <li>Keep the camera powered on and connected to the phone hotspot.</li>
+        <li>The picture in the middle is the live view. It refreshes every few seconds.</li>
+        <li>When a dog is detected, the ntfy alert arrives. Tap Live stream, not the photo.</li>
+        <li>To keep this on your home screen, tap Share in Safari, then Add to Home Screen.</li>
+      </ol>
+    </div>
     <button id="out" class="ghost" type="button">Remove secret</button>
-    <p class="help">Add this to your home screen from Safari: Share, then Add to Home Screen. On an alert, tap Live stream.</p>
   </section>
 </div>
 <script>
